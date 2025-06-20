@@ -1,4 +1,5 @@
-import { Outlet, useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
@@ -7,8 +8,13 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import CharacterPagination from "./Pagination";
-import { useState } from "react";
 import { changePageRoute } from "../routes";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
 
 type Character = {
   id: number;
@@ -39,42 +45,77 @@ function CharacterList() {
   }) as CharacterListData;
   const navigate = useNavigate();
 
+  // Define columns for react-table
+  const columns = useMemo<ColumnDef<Character>[]>(
+    () => [
+      {
+        header: "ID",
+        accessorKey: "id",
+      },
+      {
+        header: "Name",
+        accessorKey: "name",
+      },
+      {
+        header: "Details",
+        cell: ({ row }) => (
+          <Button
+            variant="outlined"
+            onClick={() =>
+              navigate({ to: `/character/description/${row.original.id}` })
+            }
+          >
+            View
+          </Button>
+        ),
+      },
+    ],
+    [navigate]
+  );
+
+  // Setup react-table instance
+  const table = useReactTable({
+    data: data?.results ?? [],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
   return data && data.results ? (
     <>
       <TableContainer
         component={Paper}
         sx={{ mt: 2, mb: 2, maxWidth: "fit-content" }}
       >
-        <TableContainer>
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Details</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {data.results.map((character) => (
-              <TableRow key={character.id}>
-                <TableCell>{character.id}</TableCell>
-                <TableCell>{character.name}</TableCell>
-                <TableCell>
-                  <Button
-                    variant="outlined"
-                    onClick={() =>
-                      navigate({ to: `/character/description/${character.id}` })
-                    }
-                  >
-                    View
-                  </Button>
+        <TableHead>
+          <TableRow>
+            {table
+              .getHeaderGroups()
+              .map((headerGroup) =>
+                headerGroup.headers.map((header) => (
+                  <TableCell key={header.id}>
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+                  </TableCell>
+                ))
+              )}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {table.getRowModel().rows.map((row) => (
+            <TableRow key={row.id}>
+              {row.getVisibleCells().map((cell) => (
+                <TableCell key={cell.id}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </TableContainer>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
       </TableContainer>
       <CharacterPagination
-        totalPages={(data && data.info?.count) || 0}
+        totalPages={data.info?.count || 0}
         setCurrentPage={setCurrentPage}
         currentPage={currentPage}
       />
